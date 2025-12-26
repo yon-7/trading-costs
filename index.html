@@ -12,7 +12,10 @@
       padding: 10px;
       line-height: 1.6;
     }
-    h1 { text-align: center; }
+
+    h1 {
+      text-align: center;
+    }
 
     .tabs button {
       width: 48%;
@@ -20,7 +23,11 @@
       margin-bottom: 10px;
       font-size: 16px;
     }
-    .active { background: #007bff; color: white; }
+
+    .active {
+      background: #007bff;
+      color: white;
+    }
 
     .section {
       margin-top: 20px;
@@ -29,9 +36,13 @@
       border-radius: 6px;
     }
 
-    label { display: block; margin-top: 10px; }
+    label {
+      display: block;
+      margin-top: 10px;
+    }
 
-    input[type="number"], input[type="date"] {
+    input[type="number"],
+    input[type="date"] {
       width: 100%;
       padding: 8px;
       margin-top: 4px;
@@ -54,18 +65,66 @@
       margin-top: 8px;
       flex-wrap: wrap;
     }
+
     .save-options label {
       display: flex;
       align-items: baseline;
       gap: 4px;
       font-size: 12px;
     }
+
     .save-options input[type="checkbox"] {
       transform: scale(0.85);
       margin: 0;
     }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 10px;
+        font-size: 16px;
+      }
+
+      .tabs {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .tabs button {
+        width: 100%;
+        padding: 14px;
+        font-size: 18px;
+      }
+
+      .section {
+        padding: 12px;
+      }
+
+      input[type="number"],
+      input[type="date"] {
+        font-size: 18px;
+        padding: 12px;
+      }
+
+      .save-options {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+
+      #result {
+        font-size: 16px;
+        line-height: 1.8;
+      }
+
+      * {
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+    }
   </style>
 </head>
+
 <body>
 
 <h1>制度信用コスト計算ツール</h1>
@@ -137,7 +196,6 @@
 
   const today = () => new Date().toISOString().split("T")[0];
 
-  // タブ復元
   const savedModeTab = localStorage.getItem("modeTab");
   if (savedModeTab === "sell") {
     mode = "sell";
@@ -146,28 +204,24 @@
     tabBuy.classList.add("active");
   }
 
-  // 保存チェック復元
-  savePrice.checked  = localStorage.getItem("savePrice")  === "1";
+  savePrice.checked = localStorage.getItem("savePrice") === "1";
   saveShares.checked = localStorage.getItem("saveShares") === "1";
-  saveDates.checked  = localStorage.getItem("saveDates")  === "1";
-
-  // 大口優遇復元
+  saveDates.checked = localStorage.getItem("saveDates") === "1";
   bigTrader.checked = localStorage.getItem("bigTrader") === "1";
 
-  // 初期値
   if (savePrice.checked) price.value = localStorage.getItem("price") ?? "";
   if (saveShares.checked) shares.value = localStorage.getItem("shares") ?? 100;
 
   if (saveDates.checked) {
     startDate.value = localStorage.getItem("startDate") || today();
-    endDate.value   = localStorage.getItem("endDate")   || today();
+    endDate.value = localStorage.getItem("endDate") || today();
   } else {
     startDate.value = today();
-    endDate.value   = today();
+    endDate.value = today();
   }
 
   const normalRate = { buy: 2.80, sell: 1.10 };
-  const bigRate    = { buy: 2.28, sell: 0.88 };
+  const bigRate = { buy: 2.28, sell: 0.88 };
 
   const updateRate = () => {
     rateInput.value = bigTrader.checked ? bigRate[mode] : normalRate[mode];
@@ -190,7 +244,6 @@
     updateRate();
   };
 
-  // 保存チェック
   savePrice.onchange = () => {
     localStorage.setItem("savePrice", savePrice.checked ? "1" : "0");
     if (!savePrice.checked) localStorage.removeItem("price");
@@ -212,7 +265,6 @@
     calculate();
   };
 
-  // 値の保存
   price.addEventListener("input", () => {
     if (savePrice.checked) localStorage.setItem("price", price.value);
     calculate();
@@ -244,9 +296,6 @@
     document.getElementById(id).addEventListener("input", calculate)
   );
 
-  // --- スクロール操作（株数・単価・日付） ---
-
-  // 株数：100刻み
   shares.addEventListener("wheel", (e) => {
     e.preventDefault();
     const step = 100;
@@ -260,7 +309,6 @@
     calculate();
   });
 
-  // 約定単価：1 / 5 / 10 刻み
   price.addEventListener("wheel", (e) => {
     e.preventDefault();
 
@@ -278,7 +326,6 @@
     calculate();
   });
 
-  // 日付：通常=日、Ctrl=月、Shift=年
   function adjustDateSmart(input, e) {
     e.preventDefault();
 
@@ -308,7 +355,6 @@
     calculate();
   });
 
-  // --- 計算処理 ---
   function calculate() {
     const priceVal = Number(price.value);
     const sharesVal = Number(shares.value);
