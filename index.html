@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>制度信用コスト計算ツール</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>🧮</text></svg>">
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 10px;
+      line-height: 1.6;
+    }
+    h1 { text-align: center; }
+
+    .tabs button {
+      width: 48%;
+      padding: 10px;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    .active { background: #007bff; color: white; }
+
+    .section {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    label { display: block; margin-top: 10px; }
+
+    input[type="number"], input[type="date"] {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+      box-sizing: border-box;
+    }
+
+    #result {
+      margin-top: 20px;
+      padding: 10px;
+      background: #f7f7f7;
+      border-radius: 6px;
+    }
+
+    .save-options {
+      display: flex;
+      justify-content: flex-end;
+      align-items: baseline;
+      gap: 12px;
+      font-size: 12px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .save-options label {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      font-size: 12px;
+    }
+    .save-options input[type="checkbox"] {
+      transform: scale(0.85);
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+
+<h1>制度信用コスト計算ツール</h1>
+
+<div class="tabs">
+  <button id="tabBuy">信用買い</button>
+  <button id="tabSell">信用売り</button>
+</div>
+
+<div class="section">
+  <h3>基本情報</h3>
+
+  <label>約定単価（円）
+    <input type="number" id="price" min="0">
+  </label>
+
+  <label>株数
+    <input type="number" id="shares" value="100" step="100" min="0">
+  </label>
+
+  <label>建日
+    <input type="date" id="startDate">
+  </label>
+
+  <label>返済日
+    <input type="date" id="endDate">
+  </label>
+
+  <div class="save-options">
+    <span>保存する項目：</span>
+    <label><input type="checkbox" id="savePrice"> 約定単価</label>
+    <label><input type="checkbox" id="saveShares"> 株数</label>
+    <label><input type="checkbox" id="saveDates"> 日付</label>
+  </div>
+</div>
+
+<div id="result">
+  <h3>結果</h3>
+  <div id="output">ここに結果が表示されます</div>
+</div>
+
+<div class="section">
+  <h3>金利・貸株料</h3>
+  <label>年率（％）
+    <input type="number" id="rate">
+  </label>
+  <label>
+    <input type="checkbox" id="bigTrader"> 大口優遇プログラムを適用する
+  </label>
+</div>
+
+<div class="section">
+  <h3>管理費</h3>
+  <label>管理費（月額・円）
+    <input type="number" id="fee" value="110">
+  </label>
+</div>
+
+<script>
+  let mode = "buy";
+
+  const tabBuy = document.getElementById("tabBuy");
+  const tabSell = document.getElementById("tabSell");
+  const rateInput = document.getElementById("rate");
+  const bigTrader = document.getElementById("bigTrader");
+  const savePrice = document.getElementById("savePrice");
+  const saveShares = document.getElementById("saveShares");
+  const saveDates = document.getElementById("saveDates");
+
+  const today = () => new Date().toISOString().split("T")[0];
+
+  // タブ復元
+  const savedModeTab = localStorage.getItem("modeTab");
+  if (savedModeTab === "sell") {
+    mode = "sell";
+    tabSell.classList.add("active");
+  } else {
+    tabBuy.classList.add("active");
+  }
+
+  // 保存チェック復元
+  savePrice.checked  = localStorage.getItem("savePrice")  === "1";
+  saveShares.checked = localStorage.getItem("saveShares") === "1";
+  saveDates.checked  = localStorage.getItem("saveDates")  === "1";
+
+  // 大口優遇復元
+  bigTrader.checked = localStorage.getItem("bigTrader") === "1";
+
+  // 初期値
+  if (savePrice.checked) price.value = localStorage.getItem("price") ?? "";
+  if (saveShares.checked) shares.value = localStorage.getItem("shares") ?? 100;
+
+  if (saveDates.checked) {
+    startDate.value = localStorage.getItem("startDate") || today();
+    endDate.value   = localStorage.getItem("endDate")   || today();
+  } else {
+    startDate.value = today();
+    endDate.value   = today();
+  }
+
+  const normalRate = { buy: 2.80, sell: 1.10 };
+  const bigRate    = { buy: 2.28, sell: 0.88 };
+
+  const updateRate = () => {
+    rateInput.value = bigTrader.checked ? bigRate[mode] : normalRate[mode];
+    calculate();
+  };
+
+  tabBuy.onclick = () => {
+    mode = "buy";
+    localStorage.setItem("modeTab", "buy");
+    tabBuy.classList.add("active");
+    tabSell.classList.remove("active");
+    updateRate();
+  };
+
+  tabSell.onclick = () => {
+    mode = "sell";
+    localStorage.setItem("modeTab", "sell");
+    tabSell.classList.add("active");
+    tabBuy.classList.remove("active");
+    updateRate();
+  };
+
+  // 保存チェック
+  savePrice.onchange = () => {
+    localStorage.setItem("savePrice", savePrice.checked ? "1" : "0");
+    if (!savePrice.checked) localStorage.removeItem("price");
+  };
+
+  saveShares.onchange = () => {
+    localStorage.setItem("saveShares", saveShares.checked ? "1" : "0");
+    if (!saveShares.checked) localStorage.removeItem("shares");
+  };
+
+  saveDates.onchange = () => {
+    localStorage.setItem("saveDates", saveDates.checked ? "1" : "0");
+    if (!saveDates.checked) {
+      localStorage.removeItem("startDate");
+      localStorage.removeItem("endDate");
+      startDate.value = today();
+      endDate.value = today();
+    }
+    calculate();
+  };
+
+  // 値の保存
+  price.addEventListener("input", () => {
+    if (savePrice.checked) localStorage.setItem("price", price.value);
+    calculate();
+  });
+
+  shares.addEventListener("input", () => {
+    if (saveShares.checked) localStorage.setItem("shares", shares.value);
+    calculate();
+  });
+
+  startDate.addEventListener("input", () => {
+    if (saveDates.checked) localStorage.setItem("startDate", startDate.value);
+    calculate();
+  });
+
+  endDate.addEventListener("input", () => {
+    if (saveDates.checked) localStorage.setItem("endDate", endDate.value);
+    calculate();
+  });
+
+  bigTrader.onchange = () => {
+    localStorage.setItem("bigTrader", bigTrader.checked ? "1" : "0");
+    updateRate();
+  };
+
+  updateRate();
+
+  ["rate", "fee"].forEach(id =>
+    document.getElementById(id).addEventListener("input", calculate)
+  );
+
+  // --- スクロール操作（株数・単価・日付） ---
+
+  // 株数：100刻み
+  shares.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const step = 100;
+    const current = Number(shares.value) || 0;
+
+    shares.value = e.deltaY < 0
+      ? current + step
+      : Math.max(0, current - step);
+
+    if (saveShares.checked) localStorage.setItem("shares", shares.value);
+    calculate();
+  });
+
+  // 約定単価：1 / 5 / 10 刻み
+  price.addEventListener("wheel", (e) => {
+    e.preventDefault();
+
+    let step = 1;
+    if (e.ctrlKey) step = 5;
+    if (e.shiftKey) step = 10;
+
+    const current = Number(price.value) || 0;
+
+    price.value = e.deltaY < 0
+      ? current + step
+      : Math.max(0, current - step);
+
+    if (savePrice.checked) localStorage.setItem("price", price.value);
+    calculate();
+  });
+
+  // 日付：通常=日、Ctrl=月、Shift=年
+  function adjustDateSmart(input, e) {
+    e.preventDefault();
+
+    const d = new Date(input.value || today());
+    const delta = e.deltaY < 0 ? 1 : -1;
+
+    if (e.shiftKey) {
+      d.setFullYear(d.getFullYear() + delta);
+    } else if (e.ctrlKey) {
+      d.setMonth(d.getMonth() + delta);
+    } else {
+      d.setDate(d.getDate() + delta);
+    }
+
+    input.value = d.toISOString().split("T")[0];
+  }
+
+  startDate.addEventListener("wheel", (e) => {
+    adjustDateSmart(startDate, e);
+    if (saveDates.checked) localStorage.setItem("startDate", startDate.value);
+    calculate();
+  });
+
+  endDate.addEventListener("wheel", (e) => {
+    adjustDateSmart(endDate, e);
+    if (saveDates.checked) localStorage.setItem("endDate", endDate.value);
+    calculate();
+  });
+
+  // --- 計算処理 ---
+  function calculate() {
+    const priceVal = Number(price.value);
+    const sharesVal = Number(shares.value);
+    const start = new Date(startDate.value);
+    const end = new Date(endDate.value);
+    const rateVal = Number(rateInput.value);
+    const feeVal = Number(fee.value);
+
+    if (!priceVal || !sharesVal || !start || !end) {
+      output.innerHTML = "入力が不足しています。";
+      return;
+    }
+
+    const amount = priceVal * sharesVal;
+    const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+    const days = diff < 1 ? 1 : diff;
+
+    const interest = amount * (rateVal / 100) * (days / 365);
+
+    const months =
+      (end.getFullYear() - start.getFullYear()) * 12 +
+      (end.getMonth() - start.getMonth()) +
+      (end.getDate() >= start.getDate() ? 1 : 0);
+
+    const manageFee = months * feeVal;
+    const total = interest + manageFee;
+
+    output.innerHTML = `
+      <b>約定金額：</b> ${amount.toLocaleString()} 円<br>
+      <b>日数：</b> ${days} 日<br>
+      <b>${mode === "buy" ? "買方金利" : "貸株料"}：</b> ${interest.toFixed(0)} 円<br>
+      <b>管理費：</b> ${manageFee} 円<br>
+      <b>合計コスト：</b> ${total.toFixed(0)} 円<br>
+      <b>1日あたり：</b> ${(total / days).toFixed(1)} 円<br>
+      <b>1株あたり：</b> ${(total / sharesVal).toFixed(4)} 円
+    `;
+  }
+</script>
+
+</body>
+</html>
